@@ -1,0 +1,32 @@
+# --- Секреты ---
+.env
+backend/data/warehouse_layout.json
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+
+# --- База данных (локальная, у каждого своя) ---
+*.db
+*.sqlite3
+
+# --- Android / Gradle ---
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/*.iml
+android/.idea/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# --- Референс, не часть репозитория ---
+docs/gas-reference/
