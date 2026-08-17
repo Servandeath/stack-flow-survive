@@ -97,3 +97,52 @@ def test_raises_after_all_attempts_fail(monkeypatch):
 
     with pytest.raises(ms.MoySkladError):
         ms.get_stock_by_cells(["id-1"])
+
+
+def test_get_sample_assortment_returns_rows(monkeypatch):
+    monkeypatch.setenv("MOYSKLAD_TOKEN", "abc123")
+
+    def fake_get(self, url, headers=None, params=None):
+        assert url.endswith("/entity/assortment")
+        assert params == {"limit": 5}
+        return FakeResponse(200, json_data={"rows": [{"id": "x1"}, {"id": "x2"}]})
+
+    monkeypatch.setattr(httpx.Client, "get", fake_get)
+
+    result = ms.get_sample_assortment(limit=5)
+    assert result == [{"id": "x1"}, {"id": "x2"}]
+
+    
+def test_get_all_rows_paginates(monkeypatch):
+    monkeypatch.setenv("MOYSKLAD_TOKEN", "abc123")
+    calls = []
+
+    def fake_get(self, url, headers=None, params=None):
+        calls.append(dict(params))
+        if params["offset"] == 0:
+            return FakeResponse(200, json_data={"rows": [{"id": "a"}, {"id": "b"}]})
+        return FakeResponse(200, json_data={"rows": [{"id": "c"}]})
+
+    monkeypatch.setattr(httpx.Client, "get", fake_get)
+
+    result = ms._get_all_rows("https://fake/url", page_size=2)
+
+    assert result == [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+    assert calls[0]["offset"] == 0
+    assert calls[1]["offset"] == 2
+
+
+def test_get_slots_calls_correct_url(monkeypatch):
+    monkeypatch.setenv("MOYSKLAD_TOKEN", "abc123")
+    captured = {}
+
+    def fake_get(self, url, headers=None, params=None):
+        captured["url"] = url
+        return FakeResponse(200, json_data={"rows": [{"id": "slot-1", "name": "A-01"}]})
+
+    monkeypatch.setattr(httpx.Client, "get", fake_get)
+
+    result = ms.get_slots("store-123")
+
+    assert captured["url"] == f"{ms.BASE_URL}/entity/store/store-123/slots"
+    assert result == [{"id": "slot-1", "name": "A-01"}]

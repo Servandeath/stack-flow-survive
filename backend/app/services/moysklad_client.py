@@ -46,7 +46,7 @@ def _headers() -> dict:
     }
 
 
-def _get_with_retry(url: str, params: dict | None = None) -> dict:
+def _get_with_retry(url: str, params: dict | None = None) -> dict | list:
     """GET с ретраями на 429/5xx — тот же паттерн, что fetchJsonWithRetry_ в GAS."""
     last_error = ""
     with httpx.Client(timeout=30.0) as client:
@@ -74,7 +74,7 @@ def _get_with_retry(url: str, params: dict | None = None) -> dict:
     )
 
 
-def get_stock_by_cells(assortment_ids: list[str], store_ids: list[str] | None = None) -> dict:
+def get_stock_by_cells(assortment_ids: list[str], store_ids: list[str] | None = None) -> list[dict]:
     """
     Текущие остатки по ячейкам для списка товаров/модификаций.
 
@@ -82,8 +82,7 @@ def get_stock_by_cells(assortment_ids: list[str], store_ids: list[str] | None = 
                       НЕ артикул и не штрихкод.
     store_ids       — опционально, UUID складов, чтобы сузить выборку.
 
-    Возвращает сырой JSON отчёта как есть — точную структуру строк ответа
-    разберём по первому реальному вызову, не угадываем поля заранее.
+    Возвращает список строк отчёта как есть: [{assortmentId, storeId, slotId, stock}, ...]
     """
     if not assortment_ids:
         raise ValueError("assortment_ids не может быть пустым")
@@ -95,3 +94,42 @@ def get_stock_by_cells(assortment_ids: list[str], store_ids: list[str] | None = 
     params = {"filter": ";".join(filter_parts)}
     url = f"{BASE_URL}/report/stock/byslot/current"
     return _get_with_retry(url, params=params)
+
+
+def get_sample_assortment(limit: int = 5) -> list[dict]:
+    """
+    Возвращает несколько реальных товаров/модификаций аккаунта —
+    для смок-тестов и разведки структуры данных.
+    """
+    url = f"{BASE_URL}/entity/assortment"
+    payload = _get_with_retry(url, params={"limit": limit})
+    return payload.get("rows", [])
+
+
+def _get_all_rows(url: str, page_size: int = 1000) -> list[dict]:
+    """
+    Постранично забирает все rows с коллекций МойСклад
+    (например /entity/store/{id}/slots — там может быть тысячи ячеек).
+    """
+    all_rows: list[dict] = []
+    offset = 0
+    while True:
+        payload = _get_with_retry(url, params={"limit": page_size, "offset": offset})
+        rows = payload.get("rows", [])
+        all_rows.extend(rows)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return all_rows
+
+
+def get_slots(store_id: str) -> list[dict]:
+    """Все ячейки (slots) склада — id, name, привязка к зоне и т.д."""
+    url = f"{BASE_URL}/entity/store/{store_id}/slots"
+    return _get_all_rows(url)
+
+
+def get_zones(store_id: str) -> list[dict]:
+    """Все зоны хранения склада."""
+    url = f"{BASE_URL}/entity/store/{store_id}/zones"
+    return _get_all_rows(url)
