@@ -133,3 +133,13 @@ def get_zones(store_id: str) -> list[dict]:
     """Все зоны хранения склада."""
     url = f"{BASE_URL}/entity/store/{store_id}/zones"
     return _get_all_rows(url)
+
+import re
+
+
+def extract_id_from_href(href: str) -> str:
+    """UUID из meta.href — последний сегмент пути вида .../{uuid}."""
+    if not href:
+        return ""
+    match = re.search(r"/([0-9a-fA-F-]{20,})(?:\?.*)?$", href)
+    return match.group(1) if match else ""

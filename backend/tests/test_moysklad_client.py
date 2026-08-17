@@ -146,3 +146,12 @@ def test_get_slots_calls_correct_url(monkeypatch):
 
     assert captured["url"] == f"{ms.BASE_URL}/entity/store/store-123/slots"
     assert result == [{"id": "slot-1", "name": "A-01"}]
+
+    
+def test_extract_id_from_href():
+    href = "https://api.moysklad.ru/api/remap/1.2/entity/store/abc/zones/49fbc0fe-6b91-11ef-0a80-187500181599"
+    assert ms.extract_id_from_href(href) == "49fbc0fe-6b91-11ef-0a80-187500181599"
+
+
+def test_extract_id_from_href_empty():
+    assert ms.extract_id_from_href("") == ""
